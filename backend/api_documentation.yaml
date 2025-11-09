@@ -1,0 +1,292 @@
+openapi: 3.0.0
+info:
+  title: AI Chat Portal API
+  description: REST API for AI Chat Portal with Conversation Intelligence
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api
+    description: Development server
+
+paths:
+  /conversations/:
+    get:
+      summary: Get all conversations
+      description: Retrieve a list of all conversations with basic information
+      tags:
+        - Conversations
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                  next:
+                    type: string
+                    nullable: true
+                  previous:
+                    type: string
+                    nullable: true
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+    
+    post:
+      summary: Create new conversation
+      description: Create a new conversation
+      tags:
+        - Conversations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "My Conversation"
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /conversations/{id}/:
+    get:
+      summary: Get conversation detail
+      description: Retrieve a specific conversation with full message history
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '404':
+          description: Conversation not found
+
+  /conversations/create_conversation/:
+    post:
+      summary: Create new conversation (alternative endpoint)
+      description: Create a new conversation with optional title
+      tags:
+        - Conversations
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Travel Planning"
+      responses:
+        '201':
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+
+  /conversations/{id}/send_message/:
+    post:
+      summary: Send message in conversation
+      description: Send a message in a conversation and receive AI response
+      tags:
+        - Messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                  example: "Tell me about Japan"
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_message:
+                    $ref: '#/components/schemas/Message'
+                  ai_message:
+                    $ref: '#/components/schemas/Message'
+
+  /conversations/{id}/end_conversation/:
+    post:
+      summary: End conversation
+      description: End a conversation and generate AI summary and analysis
+      tags:
+        - Conversations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Conversation ended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '400':
+          description: Conversation already ended
+
+  /query/:
+    post:
+      summary: Query past conversations
+      description: Ask AI questions about past conversations
+      tags:
+        - Intelligence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  example: "What did I discuss about travel last week?"
+                date_from:
+                  type: string
+                  format: date-time
+                  nullable: true
+                date_to:
+                  type: string
+                  format: date-time
+                  nullable: true
+                conversation_ids:
+                  type: array
+                  items:
+                    type: integer
+                  nullable: true
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+
+components:
+  schemas:
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, ended]
+        start_timestamp:
+          type: string
+          format: date-time
+        end_timestamp:
+          type: string
+          format: date-time
+          nullable: true
+        summary:
+          type: string
+        message_count:
+          type: integer
+        key_topics:
+          type: array
+          items:
+            type: string
+        sentiment:
+          type: string
+        action_items:
+          type: array
+          items:
+            type: string
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        content:
+          type: string
+        sender:
+          type: string
+          enum: [user, ai]
+        timestamp:
+          type: string
+          format: date-time
+
+    QueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        relevant_conversations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              start_timestamp:
+                type: string
+                format: date-time
+              summary:
+                type: string
+        excerpts:
+          type: array
+          items:
+            type: object
+            properties:
+              conversation_id:
+                type: integer
+              excerpt:
+                type: string
+
